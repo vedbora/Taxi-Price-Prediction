@@ -72,7 +72,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 export default function App() {
   const [schema, setSchema] = useState<Schema | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [form, setForm] = useState<FormState>(emptyForm());
   const [predicted, setPredicted] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [predictError, setPredictError] = useState<string | null>(null);
@@ -104,21 +104,33 @@ export default function App() {
   const numericLabels = useMemo(
     () =>
       ({
-        Trip_Distance_km: "Trip distance (km)",
+        Trip_Distance_km: "Trip Distance (km)",
         Passenger_Count: "Passengers",
-        Base_Fare: "Base fare",
-        Per_Km_Rate: "Per km rate",
-        Per_Minute_Rate: "Per minute rate",
-        Trip_Duration_Minutes: "Duration (minutes)",
+        Base_Fare: "Base Fare",
+        Per_Km_Rate: "Per Km Rate",
+        Per_Minute_Rate: "Per Minute Rate",
+        Trip_Duration_Minutes: "Duration (min)",
       }) satisfies Record<(typeof NUMERIC_KEYS)[number], string>,
+    [],
+  );
+
+  const numericIcons = useMemo(
+    () => ({
+      Trip_Distance_km: "📏",
+      Passenger_Count: "👥",
+      Base_Fare: "💰",
+      Per_Km_Rate: "📊",
+      Per_Minute_Rate: "⏱️",
+      Trip_Duration_Minutes: "🕐",
+    }),
     [],
   );
 
   const catLabels = useMemo(
     () =>
       ({
-        Time_of_Day: "Time of day",
-        Day_of_Week: "Day",
+        Time_of_Day: "Time of Day",
+        Day_of_Week: "Day of Week",
         Traffic_Conditions: "Traffic",
         Weather: "Weather",
       }) satisfies Record<(typeof CAT_KEYS)[number], string>,
@@ -169,34 +181,56 @@ export default function App() {
     }
   };
 
+  const formatINR = (val: number) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(val);
+  };
+
   return (
     <div className="app">
-      <header>
-        <h1>Taxi trip price</h1>
+      {/* ── Header ── */}
+      <header className="header">
+        <div className="header-icon">🚕</div>
+        <span className="badge">
+          <span className="badge-dot" />
+          AI Powered
+        </span>
+        <h1>Taxi Fare Predictor</h1>
+        <p>
+          Get instant, AI-powered fare estimates for your taxi trips across India
+        </p>
       </header>
 
+      {/* ── API Error ── */}
       {schemaError && (
-        <div className="error" role="alert">
-          <strong>API:</strong> {schemaError}. Start backend:{" "}
-          <code style={{ wordBreak: "break-all" }}>
-            .\.venv\Scripts\uvicorn main:app --app-dir backend --reload
-          </code>
+        <div className="error" role="alert" id="api-error">
+          <span className="error-icon">⚠️</span>
+          <div>
+            <strong>Connection Error:</strong> {schemaError}
+          </div>
         </div>
       )}
 
+      {/* ── Main form ── */}
       {schema && (
         <div className="form-card">
+          <div className="section-title">Trip Details</div>
           <div className="form-grid">
             {(Object.keys(numericLabels) as (typeof NUMERIC_KEYS)[number][]).map(
               (key) => (
                 <div key={key} className="field">
-                  <label htmlFor={key}>{numericLabels[key]}</label>
+                  <label htmlFor={key}>
+                    {numericIcons[key]} {numericLabels[key]}
+                  </label>
                   <input
                     id={key}
                     type="number"
                     step="any"
                     inputMode="decimal"
-                    placeholder="Leave empty to impute"
+                    placeholder="Auto-fill"
                     value={form[key]}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, [key]: e.target.value }))
@@ -205,6 +239,12 @@ export default function App() {
                 </div>
               ),
             )}
+          </div>
+
+          <div className="divider" />
+
+          <div className="section-title">Ride Conditions</div>
+          <div className="form-grid">
             {(Object.keys(catLabels) as (typeof CAT_KEYS)[number][]).map((key) => (
               <div key={key} className="field">
                 <label htmlFor={key}>{catLabels[key]}</label>
@@ -215,7 +255,7 @@ export default function App() {
                     setForm((f) => ({ ...f, [key]: e.target.value }))
                   }
                 >
-                  <option value="">—</option>
+                  <option value="">Select...</option>
                   {(schema.categorical_options[key] ?? []).map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -226,17 +266,21 @@ export default function App() {
             ))}
           </div>
 
+          {/* ── Actions ── */}
           <div className="actions">
             <button
               type="button"
+              id="predict-btn"
               className="primary"
               disabled={loading}
               onClick={() => void onPredict()}
             >
-              {loading ? "Predicting…" : "Predict price"}
+              {loading && <span className="spinner" />}
+              {loading ? "Predicting…" : "🔮 Predict Fare"}
             </button>
             <button
               type="button"
+              id="reset-btn"
               className="ghost"
               disabled={loading}
               onClick={() => {
@@ -246,37 +290,38 @@ export default function App() {
                 void loadMeta();
               }}
             >
-              Reset
+              ↺ Reset
             </button>
           </div>
 
+          {/* ── Error ── */}
           {predictError && (
-            <div className="error" role="alert">
-              {predictError}
+            <div className="error" role="alert" id="predict-error">
+              <span className="error-icon">❌</span>
+              <div>{predictError}</div>
             </div>
           )}
 
+          {/* ── Result ── */}
           {predicted !== null && (
-            <div className="result">
-              <h2>Estimated trip price</h2>
-              <div className="price">
-                {predicted.toLocaleString(undefined, {
-                  style: "currency",
-                  currency: "USD",
-                  maximumFractionDigits: 2,
-                })}
-              </div>
+            <div className="result" id="prediction-result">
+              <div className="result-label">Estimated Trip Fare</div>
+              <div className="price">{formatINR(predicted)}</div>
             </div>
           )}
 
           <p className="hint">
-            Empty numeric fields are sent as null; the model uses the same
-            imputation as training. Retrain after editing the CSV via{" "}
-            <code>POST /api/retrain</code> or delete{" "}
-            <code>backend/model.joblib</code> and restart the server.
+            Empty fields are auto-imputed by the model. Retrain via{" "}
+            <code>POST /retrain</code> or delete{" "}
+            <code>model.joblib</code> and restart.
           </p>
         </div>
       )}
+
+      {/* ── Footer ── */}
+      <footer className="footer">
+        Built with ❤️ using FastAPI & React &bull; Netra
+      </footer>
     </div>
   );
 }
