@@ -80,7 +80,8 @@ export default function App() {
   const loadMeta = useCallback(async () => {
     setSchemaError(null);
     try {
-      const s = await fetchJson<Schema>("/api/schema");
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+      const s = await fetchJson<Schema>(`${apiBase}/schema`);
       setSchema(s);
       setForm((prev) => {
         const next = { ...prev };
@@ -155,7 +156,8 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const r = await fetchJson<{ predicted_trip_price: number }>("/api/predict", {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+      const r = await fetchJson<{ predicted_trip_price: number }>(`${apiBase}/predict`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
