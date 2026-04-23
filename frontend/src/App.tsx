@@ -320,7 +320,7 @@ export default function App() {
 
       {/* ── Footer ── */}
       <footer className="footer">
-        Built with ❤️ using FastAPI & React &bull; Netra
+        Built with ❤️ using FastAPI & React
       </footer>
     </div>
   );
